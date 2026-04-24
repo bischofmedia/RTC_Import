@@ -110,7 +110,22 @@ TRACK_NAME_MAP = {
     'Grand Valley South': ('Grand Valley', 'South'),
     'Kyoto DP - Yamagiwa + Miyabi': ('Kyoto DP', 'Yamagiwa + Miyabi'),
     'Tokyo Expressway South-CW': ('Tokyo Expressway', 'South Counter-Clockwise'),
+    'Grand Valley South': ('Grand Valley', 'South'),
+    'Mount Panorama': ('Mount Panorama', 'Full Course'),
+    'Brands Hatch GP': ('Brands Hatch', 'GP Circuit'),
+    'Nürburgring GP/F': ('Nürburgring', 'GP'),
+    'Daytona Straßenkurs': ('Daytona', 'Road Course'),
+    'Grand Valley Highway 1': ('Grand Valley', 'Highway 1'),
+    'Trial Mountain - Reverse': ('Trial Mountain', 'Reverse'),
+    'Fuji International Speedway': ('Fuji International Speedway', 'Full Course'),
+    'Sainte-Croix - B': ('Sainte-Croix', 'Layout B'),
+    'Barcelona - GP': ('Barcelona', 'GP'),
+    'Goodwood Motor Circuit': ('Goodwood Motor Circuit', 'Full Course'),
+    'Alsace - Village': ('Alsace', 'Village'),
+    'Deep Forest Raceway': ('Deep Forest Raceway', 'Full Course'),
+    'Nürburgring Endurance': ('Nürburgring', 'Endurance'),
 }
+
 
 # Team-Namen-Normalisierung
 TEAM_NORMALIZATIONS = {
