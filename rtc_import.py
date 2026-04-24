@@ -471,26 +471,26 @@ VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
                 print(f"  - {err}")
     
     def validate(self):
-        """Validiere Import"""
-        self.cursor.execute("""
-            SELECT COUNT(*) FROM race_results WHERE g.race_id = %s
-        """, (self.race_id,))
-        count = self.cursor.fetchone()[0]
-        
-        print(f"\n✓ Validierung: {count} Ergebnisse importiert")
-        
-        self.cursor.execute("""
-            SELECT g.grid_class, COUNT(*) as count
-            FROM grids g
-            JOIN race_results r ON g.grid_id = r.grid_id
-            WHERE race_id = %s
-            GROUP BY g.grid_class
-            ORDER BY g.grid_class
-        """, (self.race_id,))
-        
-        print("  Grid-Verteilung:")
-        for grid_class, count in self.cursor.fetchall():
-            print(f"    Grid {grid_class}: {count} Fahrer")
+    """Validiere Import"""
+    self.cursor.execute("""
+        SELECT COUNT(*) FROM race_results WHERE race_id = %s
+    """, (self.race_id,))
+    count = self.cursor.fetchone()[0]
+    
+    print(f"\n✓ Validierung: {count} Ergebnisse importiert")
+    
+    # Grid-Verteilung (über grid_id aus race_results)
+    self.cursor.execute("""
+        SELECT grid_id, COUNT(*) as count
+        FROM race_results
+        WHERE race_id = %s
+        GROUP BY grid_id
+        ORDER BY grid_id
+    """, (self.race_id,))
+    
+    print("  Grid-Verteilung:")
+    for grid_id, count in self.cursor.fetchall():
+        print(f"    Grid ID {grid_id}: {count} Fahrer")
     
     def run(self):
         """Haupt-Import-Workflow"""
