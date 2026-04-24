@@ -108,6 +108,7 @@ TRACK_NAME_MAP = {
     'Trial Mountain': ('Trial Mountain', 'Full Course'),
     'Watkins Glen': ('Watkins Glen', 'Long Course'),
     'Grand Valley South': ('Grand Valley', 'South'),
+    'Kyoto DP - Yamagiwa + Miyabi': ('Kyoto DP', 'Yamagiwa + Miyabi'),
 }
 
 # Team-Namen-Normalisierung
@@ -335,17 +336,17 @@ class RTCImporter:
         
         return len(new_drivers)
     
-    def insert_race(self, race_date: datetime, track_id: int, version_id: int, 
-                    fastest_lap_time: str, fastest_lap_driver: str):
+    def insert_race(self, race_number: str, race_date: datetime, track_id: int, version_id: int,
+                fastest_lap_time: str, fastest_lap_driver: str):
         """Füge Race ein"""
         fl_driver_id = self.drivers.get(fastest_lap_driver)
         
         self.cursor.execute("""
-            INSERT INTO races (race_id, season_id, race_number, track_id, version_id, race_date, 
-                             fastest_lap_time, fastest_lap_driver_id)
-            VALUES (%s, %s, %s, %s, %s, %s, %s)
-        """, (self.race_id, self.season_id, race_number, track_id, version_id, race_date.date(),
-              fastest_lap_time, fl_driver_id))
+            INSERT INTO races (race_id, season_id, race_number, track_id, version_id, race_date,
+                   fastest_lap_time, fastest_lap_driver_id)
+VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+""", (self.race_id, self.season_id, race_number, track_id, version_id, race_date.date(),
+      fastest_lap_time, fl_driver_id))
     
     def insert_grids(self, grid_classes: list) -> dict:
         """Füge Grids ein, return grid_class -> grid_id mapping"""
