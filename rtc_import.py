@@ -137,6 +137,7 @@ TRACK_NAME_MAP = {
     'Barcelona - National': ('Barcelona', 'National'),
     'Yas Marina Circuit ': ('Yas Marina Circuit', 'Full Course'),
     'Sainte-Croix - A REV': ('Sainte-Croix', 'Layout A Reverse'),
+    'Spa-Francorchamps - Full Course': ('Spa-Francorchamps', 'Full Course'),
 }
 
 
