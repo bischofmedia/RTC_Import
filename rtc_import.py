@@ -109,6 +109,7 @@ TRACK_NAME_MAP = {
     'Watkins Glen': ('Watkins Glen', 'Long Course'),
     'Grand Valley South': ('Grand Valley', 'South'),
     'Kyoto DP - Yamagiwa + Miyabi': ('Kyoto DP', 'Yamagiwa + Miyabi'),
+    'Tokyo Expressway South-CW': ('Tokyo Expressway', 'South Counter-Clockwise'),
 }
 
 # Team-Namen-Normalisierung
