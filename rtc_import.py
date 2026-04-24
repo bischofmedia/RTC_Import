@@ -124,6 +124,12 @@ TRACK_NAME_MAP = {
     'Alsace - Village': ('Alsace', 'Village'),
     'Deep Forest Raceway': ('Deep Forest Raceway', 'Full Course'),
     'Nürburgring Endurance': ('Nürburgring', 'Endurance'),
+    'Autódromo De Interlagos': ('Autódromo De Interlagos', 'Full Course'),
+    'LeMans': ('LeMans', 'Full Course'),
+    'Sainte-Croix - A': ('Sainte-Croix', 'Layout A'),
+    'Nürburgring 24h': ('Nürburgring', '24h Layout'),
+    'Sardegna - B': ('Sardegna - Road Track', 'B'),
+    'High Speed Ring': ('High Speed Ring', 'Full Course'),
 }
 
 
