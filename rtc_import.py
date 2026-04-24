@@ -130,6 +130,10 @@ TRACK_NAME_MAP = {
     'Nürburgring 24h': ('Nürburgring', '24h Layout'),
     'Sardegna - B': ('Sardegna - Road Track', 'B'),
     'High Speed Ring': ('High Speed Ring', 'Full Course'),
+    'Kyoto DP - Yamagiwa': ('Kyoto DP', 'Yamagiwa'),
+    'Lago Maggiore - West REV': ('Lago Maggiore', 'West Reverse'),
+    'Circuit Gilles Villeneuve ': ('Circuit Gilles Villeneuve', 'Full Course'),
+    'Barcelona - National': ('Barcelona', 'National'),
 }
 
 
