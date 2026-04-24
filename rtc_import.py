@@ -275,7 +275,6 @@ class RTCImporter:
     
     def get_version_for_date(self, race_date: datetime) -> int:
         """Finde GT7-Version die zum Renndatum aktiv war"""
-        # Konvertiere datetime zu date für Vergleich
         race_date_only = race_date.date() if hasattr(race_date, 'date') else race_date
         for version_id, release_date in self.versions:
             if race_date_only >= release_date:
@@ -471,7 +470,7 @@ class RTCImporter:
     def validate(self):
         """Validiere Import"""
         self.cursor.execute("""
-            SELECT COUNT(*) FROM race_results WHERE race_id = %s
+            SELECT COUNT(*) FROM race_results WHERE g.race_id = %s
         """, (self.race_id,))
         count = self.cursor.fetchone()[0]
         
