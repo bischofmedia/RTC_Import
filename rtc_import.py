@@ -134,6 +134,8 @@ TRACK_NAME_MAP = {
     'Lago Maggiore - West REV': ('Lago Maggiore', 'West Reverse'),
     'Circuit Gilles Villeneuve ': ('Circuit Gilles Villeneuve', 'Full Course'),
     'Barcelona - National': ('Barcelona', 'National'),
+    'Yas Marina Circuit ': ('Yas Marina Circuit', 'Full Course'),
+    'Sainte-Croix - A REV': ('Sainte-Croix', 'Layout A Reverse'),
 }
 
 
