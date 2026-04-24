@@ -107,6 +107,7 @@ TRACK_NAME_MAP = {
     'Tokyo - East': ('Tokyo Expressway', 'East Clockwise'),
     'Trial Mountain': ('Trial Mountain', 'Full Course'),
     'Watkins Glen': ('Watkins Glen', 'Long Course'),
+    'Grand Valley South': ('Grand Valley', 'South'),
 }
 
 # Team-Namen-Normalisierung
@@ -276,6 +277,7 @@ class RTCImporter:
     def get_version_for_date(self, race_date: datetime) -> int:
         """Finde GT7-Version die zum Renndatum aktiv war"""
         race_date_only = race_date.date() if hasattr(race_date, 'date') else race_date
+        race_date_only = race_date.date() if hasattr(race_date, 'date') else race_date
         for version_id, release_date in self.versions:
             if race_date_only >= release_date:
                 return version_id
@@ -339,10 +341,10 @@ class RTCImporter:
         fl_driver_id = self.drivers.get(fastest_lap_driver)
         
         self.cursor.execute("""
-            INSERT INTO races (race_id, season_id, track_id, version_id, race_date, 
+            INSERT INTO races (race_id, season_id, race_number, track_id, version_id, race_date, 
                              fastest_lap_time, fastest_lap_driver_id)
             VALUES (%s, %s, %s, %s, %s, %s, %s)
-        """, (self.race_id, self.season_id, track_id, version_id, race_date.date(),
+        """, (self.race_id, self.season_id, race_number, track_id, version_id, race_date.date(),
               fastest_lap_time, fl_driver_id))
     
     def insert_grids(self, grid_classes: list) -> dict:
@@ -533,7 +535,7 @@ class RTCImporter:
         
         # 7. Race einfügen
         print("\nFüge Race ein...")
-        self.insert_race(race_date, track_id, version_id, fl_time, fl_driver)
+        self.insert_race(race_num, race_date, track_id, version_id, fl_time, fl_driver)
         print(f"  ✓ Race {self.race_id} angelegt")
         
         # 8. Grids einfügen
