@@ -1,0 +1,7 @@
+# RTC Import - Python Dependencies
+
+# MySQL Connector
+mysql-connector-python>=8.0.0
+
+# Optional: Environment loading
+python-dotenv>=0.19.0
