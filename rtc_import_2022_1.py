@@ -25,9 +25,9 @@ from typing import Dict, List, Tuple, Optional
 # Track-Mapping (wie in anderen Scripts)
 TRACK_NAME_MAP = {
     'Mount Panorama': ('Mount Panorama', 'Full Course'),
-    'Tokyo Expressway South-Out': ('Tokyo Expressway', 'South Outer Loop'),
+    'Tokyo Expressway South-Out': ('Tokyo Expressway', 'South Clockwise'),
     'Fuji Int. Speedway (Short)': ('Fuji International Speedway', 'Short'),
-    'Autopolis IRC': ('Autopolis', 'IRC Full Course'),
+    'Autopolis IRC': ('Autopolis IRC', 'Full Course'),
     'Autódromo De Interlagos': ('Autódromo De Interlagos', 'Full Course'),
     'Blue Moon Bay - B REV': ('Blue Moon Bay Speedway', 'Infield B Reverse'),
     'Red Bull Ring': ('Red Bull Ring', 'Full Course'),
@@ -45,6 +45,7 @@ TRACK_NAME_MAP = {
 
 # Vehicle-Mapping
 VEHICLE_MAP = {
+    '': 10,  # Fallback für leere Autos -> Corvette C7
     'Aston Martin Vantage': 3,
     'Aston Martin DBR9': 2,
     'Mercedes-Benz AMG': 28,
@@ -80,6 +81,8 @@ VEHICLE_MAP = {
     'Nissan GT-R N24 \'13': 31,
     'BMW M3 GT': 6,
     'Citroen GT': 11,
+    'BMW Z4': 9,
+    'Volkswagen GTI VGT': 46,
 }
 
 # Team-Normalisierung
@@ -192,7 +195,7 @@ class Season2022_1Importer:
         ranges = []
         for i in range(16):
             race_num = i + 1
-            start_col = 1 + (i * 19)  # 19 = 17 Datenspalten + 2 Leer-Spalten
+            start_col = 1 + (i * 18)  # 19 = 17 Datenspalten + 2 Leer-Spalten
             end_col = start_col + 17
             ranges.append((race_num, start_col, end_col))
         
