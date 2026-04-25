@@ -113,6 +113,10 @@ TRACK_NAME_MAP = {
     'Trial Mountain': ('Trial Mountain', 'Full Course'),
     'Watkins Glen': ('Watkins Glen', 'Long Course'),
     'Deep Forest Raceway -REVERSE': ('Deep Forest Raceway', 'Reverse'),
+    'Alsace - Village': ('Alsace', 'Village'),
+    'Deep Forest Raceway -REVERSE': ('Deep Forest Raceway', 'Reverse'),
+    'Alsace - Village': ('Alsace', 'Village'),
+    'Barcelona - GP - no chicane': ('Barcelona', 'GP (no chicane)'),
 }
 
 # Team-Namen-Normalisierung
