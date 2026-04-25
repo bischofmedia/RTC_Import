@@ -127,7 +127,7 @@ TRACK_NAME_MAP = {
     'Lago Maggiore - GP REV': ('Lago Maggiore', 'GP Reverse'),
     'Autopolis IRC': ('Autopolis', 'IRC Full Course'),
     'Kyoto DP - Yamagiwa': ('Kyoto DP', 'Yamagiwa'),
-    'Fuji Int. Speedway (Short)': ('Fuji International Speedway', 'Short Course'),
+    'Fuji Int. Speedway (Short)': ('Fuji International Speedway', 'Short'),
     'Watkins Glen Short': ('Watkins Glen', 'Short Course'),
 }
 
