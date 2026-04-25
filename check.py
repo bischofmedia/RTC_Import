@@ -224,6 +224,56 @@ def check_season(season_id, show_details=False):
     if no_vehicle_count > 0:
         issues.append(f"{no_vehicle_count} Ergebnisse ohne Fahrzeug")
     
+    # Ergebnisse ohne Fahrzeug
+    cursor.execute("""
+        SELECT COUNT(*)
+        FROM race_results rr
+        JOIN races r ON rr.race_id = r.race_id
+        WHERE r.season_id = %s AND rr.vehicle_id IS NULL
+    """, (season_id,))
+    
+    no_vehicle_count = cursor.fetchone()[0]
+    if no_vehicle_count > 0:
+        issues.append(f"{no_vehicle_count} Ergebnisse ohne Fahrzeug")
+    
+    # NEU: Ergebnisse ohne finish_pos_grid
+    cursor.execute("""
+        SELECT COUNT(*)
+        FROM race_results rr
+        JOIN races r ON rr.race_id = r.race_id
+        WHERE r.season_id = %s AND rr.finish_pos_grid IS NULL
+    """, (season_id,))
+    
+    no_grid_pos_count = cursor.fetchone()[0]
+    if no_grid_pos_count > 0:
+        issues.append(f"{no_grid_pos_count} Ergebnisse ohne finish_pos_grid")
+    
+    # NEU: Ergebnisse ohne finish_pos_overall
+    cursor.execute("""
+        SELECT COUNT(*)
+        FROM race_results rr
+        JOIN races r ON rr.race_id = r.race_id
+        WHERE r.season_id = %s AND rr.finish_pos_overall IS NULL
+    """, (season_id,))
+    
+    no_overall_pos_count = cursor.fetchone()[0]
+    if no_overall_pos_count > 0:
+        issues.append(f"{no_overall_pos_count} Ergebnisse ohne finish_pos_overall")
+    
+    # NEU: Ergebnisse ohne time_percent (außer DNFs)
+    cursor.execute("""
+        SELECT COUNT(*)
+        FROM race_results rr
+        JOIN races r ON rr.race_id = r.race_id
+        WHERE r.season_id = %s 
+        AND rr.time_percent IS NULL 
+        AND (rr.status IS NULL OR rr.status != 'DNF')
+    """, (season_id,))
+    
+    no_time_percent_count = cursor.fetchone()[0]
+    if no_time_percent_count > 0:
+        issues.append(f"{no_time_percent_count} Ergebnisse ohne time_percent (ohne DNFs)")
+    
     if issues:
         print(f"\n⚠️  Datenqualität:")
         for issue in issues:
