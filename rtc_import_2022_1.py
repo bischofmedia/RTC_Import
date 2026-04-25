@@ -31,7 +31,7 @@ TRACK_NAME_MAP = {
     'Autódromo De Interlagos': ('Autódromo De Interlagos', 'Full Course'),
     'Blue Moon Bay - B REV': ('Blue Moon Bay Speedway', 'Infield B Reverse'),
     'Red Bull Ring': ('Red Bull Ring', 'Full Course'),
-    'Nürburgring GP/F': ('Nürburgring', 'GP/F'),
+    'Nürburgring GP/F': ('Nürburgring', 'GP'),
     'Sainte-Croix - B': ('Sainte-Croix', 'Layout B'),
     'Spa-Francorchamps': ('Spa-Francorchamps', 'Full Course'),
     'Sardegna - A - REV': ('Sardegna - Road Track', 'A Reverse'),
