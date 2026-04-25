@@ -269,8 +269,8 @@ class RTCImporter:
                 'driver': driver,
                 'team': row[4].strip(),
                 'car': row[5].strip(),
-                'grid_class': row[8].strip(),
-                'penalty_str': row[8].strip(),  # SPALTE 8!
+                'grid_class': row[7].strip(),
+                'penalty_str': row[8].strip(),  # SPALTE 7!
                 'penalty_points': 0,  # Penalty Points nicht in CSV
                 'race_time_str': row[9].strip(),  # SPALTE 9!
                 'points_str': row[11].strip() if len(row) > 11 else '',  # SPALTE 11!
