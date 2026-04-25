@@ -112,15 +112,18 @@ TRACK_NAME_MAP = {
     'Tokyo - East': ('Tokyo Expressway', 'East Clockwise'),
     'Trial Mountain': ('Trial Mountain', 'Full Course'),
     'Watkins Glen': ('Watkins Glen', 'Long Course'),
-    'Deep Forest Raceway -REVERSE': ('Deep Forest Raceway', 'Reverse'),
-    'Alsace - Village': ('Alsace', 'Village'),
+    'Grand Valley South': ('Grand Valley', 'South'),
+    'Kyoto DP - Yamagiwa + Miyabi': ('Kyoto DP', 'Yamagiwa + Miyabi'),
+    'Tokyo Expressway South-CW': ('Tokyo Expressway', 'South Counter-Clockwise'),
+    'Brands Hatch GP': ('Brands Hatch', 'GP Circuit'),
+    'Nürburgring GP/F': ('Nürburgring', 'GP'),
     'Deep Forest Raceway -REVERSE': ('Deep Forest Raceway', 'Reverse'),
     'Alsace - Village': ('Alsace', 'Village'),
     'Barcelona - GP - no chicane': ('Barcelona', 'GP (no chicane)'),
-    'Nürburgring - GP': ('Nürburgring', 'GP'),
-    'Nürburgring GP/F': ('Nürburgring', 'GP'),
     'Tokyo Expressway East_CCW': ('Tokyo Expressway', 'East Counter-Clockwise'),
     'Daytona Straßenkurs': ('Daytona', 'Road Course'),
+    'Sainte-Croix - B': ('Sainte-Croix', 'Layout B'),
+    'Sardegna - B': ('Sardegna - Road Track', 'B'),
 }
 
 # Team-Namen-Normalisierung
@@ -542,6 +545,11 @@ class RTCImporter:
         print("\nPrüfe neue Daten...")
         new_team_count = self.insert_new_teams(csv_teams)
         new_driver_count = self.insert_new_drivers(csv_drivers)
+        
+        # WICHTIG: Commit damit die IDs verfügbar sind
+        if new_team_count > 0 or new_driver_count > 0:
+            self.conn.commit()
+            print("  ✓ Neue Teams/Fahrer committed")
         
         if new_team_count == 0 and new_driver_count == 0:
             print("  ✓ Keine neuen Teams oder Fahrer")
