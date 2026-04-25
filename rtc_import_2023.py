@@ -112,6 +112,7 @@ TRACK_NAME_MAP = {
     'Tokyo - East': ('Tokyo Expressway', 'East Clockwise'),
     'Trial Mountain': ('Trial Mountain', 'Full Course'),
     'Watkins Glen': ('Watkins Glen', 'Long Course'),
+    'Deep Forest Raceway -REVERSE': ('Deep Forest Raceway', 'Reverse'),
 }
 
 # Team-Namen-Normalisierung
