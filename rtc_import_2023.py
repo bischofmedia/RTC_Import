@@ -546,10 +546,15 @@ class RTCImporter:
         new_team_count = self.insert_new_teams(csv_teams)
         new_driver_count = self.insert_new_drivers(csv_drivers)
         
-        # WICHTIG: Commit damit die IDs verfügbar sind
+        # WICHTIG: Commit und Cache neu laden
         if new_team_count > 0 or new_driver_count > 0:
             self.conn.commit()
-            print("  ✓ Neue Teams/Fahrer committed")
+            # Cache neu laden damit die neuen IDs verfügbar sind
+            self.cursor.execute("SELECT driver_id, psn_name FROM drivers")
+            self.drivers = {psn: did for did, psn in self.cursor.fetchall()}
+            self.cursor.execute("SELECT team_id, name FROM teams")
+            self.teams = {name: tid for tid, name in self.cursor.fetchall()}
+            print("  ✓ Neue Teams/Fahrer committed und Cache aktualisiert")
         
         if new_team_count == 0 and new_driver_count == 0:
             print("  ✓ Keine neuen Teams oder Fahrer")
