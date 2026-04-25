@@ -118,6 +118,7 @@ TRACK_NAME_MAP = {
     'Alsace - Village': ('Alsace', 'Village'),
     'Barcelona - GP - no chicane': ('Barcelona', 'GP (no chicane)'),
     'Nürburgring - GP': ('Nürburgring', 'GP'),
+    'Nürburgring GP/F': ('Nürburgring', 'GP'),
 }
 
 # Team-Namen-Normalisierung
