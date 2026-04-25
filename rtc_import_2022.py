@@ -82,8 +82,8 @@ VEHICLE_MAP = {
     'Lexus RC F Prototyp': 49,
     'Ferrari 296 GT3': 50,
     "Porsche 911 GT3 R'22": 51,
-    "Nissan GT-R N24 '13": 52,  # Neues Fahrzeug
-    'BMW M6': 53,  # Neues Fahrzeug
+    "Nissan GT-R N24 '13": 31,
+    'BMW M6': 7,  
 }
 
 # Track-Name-Mapping (CSV-Name -> DB-Suchstring)
