@@ -40,6 +40,7 @@ TRACK_NAME_MAP = {
     'Dragon Trail - Seaside': ('Dragon Trail', 'Seaside'),
     'Brands Hatch GP': ('Brands Hatch', 'GP Circuit'),
     'Nürburgring 24h': ('Nürburgring', '24h Layout'),
+    'Red Bull Ring Wet': ('Red Bull Ring', 'Full Course'),
 }
 
 # Vehicle-Mapping
@@ -134,7 +135,7 @@ class Season2022_1Importer:
         print(f"  ✓ {len(self.tracks)} Tracks")
         
         # GT7 Versionen
-        self.cursor.execute("SELECT version_id, release_date FROM gt7_versions ORDER BY release_date DESC")
+        self.cursor.execute("SELECT version_id, release_date FROM game_versions ORDER BY release_date DESC")
         self.versions = list(self.cursor.fetchall())
         print(f"  ✓ {len(self.versions)} GT7 Versionen")
         
@@ -237,7 +238,7 @@ class Season2022_1Importer:
         
         # Header-Zeile ist Zeile 5 (index 4)
         # Daten-Zeilen ab Zeile 6 (index 5)
-        for row in data_rows[5:]:
+        for row in data_rows[6:]:
             if len(row) <= end_col:
                 continue
             
@@ -246,22 +247,23 @@ class Season2022_1Importer:
             if not pos_str or not pos_str.isdigit():
                 continue
             
-            # NAT, DRIVER, CAR in Spalten start_col+1, +2, +4
+            # NACHHER:
+            # Pos = start_col (Spalte 1)
+            # NAT = start_col+1 (Spalte 2)
+            # DRIVER = start_col+2 (Spalte 3)
+            # CAR = start_col+3 (Spalte 4)
+            # RaceTime = start_col+5 (Spalte 6)
+            # Penalty = start_col+6 (Spalte 7)
+            # Team = start_col+8 (Spalte 9)
+            # CL = start_col+9 (Spalte 10)
+
             nat = row[start_col + 1].strip() if len(row) > start_col + 1 else ''
             driver = row[start_col + 2].strip() if len(row) > start_col + 2 else ''
-            car = row[start_col + 4].strip() if len(row) > start_col + 4 else ''
-            
-            # RaceTime in Spalte start_col+6
-            race_time = row[start_col + 6].strip() if len(row) > start_col + 6 else ''
-            
-            # Penalty in Spalte start_col+7
-            penalty = row[start_col + 7].strip() if len(row) > start_col + 7 else ''
-            
-            # Team in Spalte start_col+9
-            team = row[start_col + 9].strip() if len(row) > start_col + 9 else ''
-            
-            # Grid-Klasse in Spalte start_col+10
-            grid_class = row[start_col + 10].strip() if len(row) > start_col + 10 else ''
+            car = row[start_col + 3].strip() if len(row) > start_col + 3 else ''
+            race_time = row[start_col + 5].strip() if len(row) > start_col + 5 else ''
+            penalty = row[start_col + 6].strip() if len(row) > start_col + 6 else ''
+            team = row[start_col + 8].strip() if len(row) > start_col + 8 else ''
+            grid_class = row[start_col + 9].strip() if len(row) > start_col + 9 else ''
             
             if not driver:
                 continue
@@ -340,6 +342,8 @@ class Season2022_1Importer:
             
             # Grids einfügen
             grid_classes = list(set(r['grid_class'] for r in results if r['grid_class']))
+            print(f"  Grid-Klassen gefunden: {grid_classes}")
+            print(f"  Grid-Klassen (repr): {[repr(gc) for gc in grid_classes]}")  # NEU
             grid_map = self.insert_grids(grid_classes)
             
             # Results einfügen
@@ -418,16 +422,26 @@ class Season2022_1Importer:
         """, (self.season_id, race_num, race_date, track_id, version_id, fl_time, fl_driver_id))
         
         self.race_id = self.cursor.lastrowid
+        self.conn.commit()  # NEU: COMMIT damit race_id verfügbar ist
     
     def insert_grids(self, grid_classes: List[str]) -> Dict[str, int]:
         """Füge Grids ein, returns {grid_class: grid_id}"""
         grid_map = {}
         
+        # Mapping: grid_class -> grid_number
+        class_to_number = {
+            'PRO': '1',
+            'SP': '2',
+            'AM': '3',
+        }
+        
         for gc in sorted(grid_classes):
+            grid_number = class_to_number.get(gc, "1")
+            
             self.cursor.execute("""
-                INSERT INTO grids (race_id, grid_class)
-                VALUES (%s, %s)
-            """, (self.race_id, gc))
+                INSERT INTO grids (race_id, grid_number, grid_class)
+                VALUES (%s, %s, %s)
+            """, (self.race_id, grid_number, gc))
             
             grid_map[gc] = self.cursor.lastrowid
         
