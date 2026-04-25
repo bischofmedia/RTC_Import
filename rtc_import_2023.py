@@ -119,6 +119,8 @@ TRACK_NAME_MAP = {
     'Barcelona - GP - no chicane': ('Barcelona', 'GP (no chicane)'),
     'Nürburgring - GP': ('Nürburgring', 'GP'),
     'Nürburgring GP/F': ('Nürburgring', 'GP'),
+    'Tokyo Expressway East_CCW': ('Tokyo Expressway', 'East Counter-Clockwise'),
+    'Daytona Straßenkurs': ('Daytona', 'Road Course'),
 }
 
 # Team-Namen-Normalisierung
