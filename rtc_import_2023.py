@@ -117,6 +117,7 @@ TRACK_NAME_MAP = {
     'Deep Forest Raceway -REVERSE': ('Deep Forest Raceway', 'Reverse'),
     'Alsace - Village': ('Alsace', 'Village'),
     'Barcelona - GP - no chicane': ('Barcelona', 'GP (no chicane)'),
+    'Nürburgring - GP': ('Nürburgring', 'GP'),
 }
 
 # Team-Namen-Normalisierung
