@@ -12,21 +12,21 @@ Environment-Variablen (erforderlich):
     SEASON_ID=2 (für Season 2020.1)
 
 CSV-Struktur:
-- Zeile 2: 'Race' in Spalte B (1), leer, Rennnummer in D (3), Track in E (4)
+- Zeile 2: 'Race' in B(1), leer, Rennnummer in D(3), Track in E(4)
 - Zeile 4/5: SR (schnellste Runde)
 - Zeile 6: Header
 - Zeilen 7-53: Ergebnisse (Index 6-52)
 - Abstand zwischen Rennen: 10 Spalten
+- start_col = 0 für Rennen 1
 
-Spalten-Offsets (ab start_col=1 für Rennen 1):
-- +0: 'Race' Label
+Spalten-Offsets (ab start_col):
 - +1: Pos
 - +2: Grid (1, 2, 3)
 - +3: RaceTime
 - +4: Driver
 - +5: Team
 - +6: Punktebasis
-- +7: Clas (PRO/SP/AM/AI)
+- +7: Clas (PRO/SP/AM/AI) - AI wird zu PRO normalisiert
 - +8: Gesamtpunkte
 - +9: Bonuspunkte
 """
@@ -57,12 +57,14 @@ RACE_DATA = {
     16: {'race_id': 40, 'date': '2020-05-11'},
 }
 
+# Gültige Grid-Klassen
+VALID_CLASSES = {'PRO', 'SP', 'AM'}
+
 # Grid-Klassen Mapping
 CLASS_TO_NUMBER = {
     'PRO': '1',
     'SP':  '2',
     'AM':  '3',
-    'AI':  '1',  # AI = alte Bezeichnung für PRO
 }
 
 # Team-Normalisierung
@@ -111,22 +113,23 @@ class Season2020_1Importer:
         print(f"  ✓ {len(self.teams)} Teams")
 
     def get_race_columns(self, rows: List[List[str]]) -> Dict[int, Dict]:
-        """Lese Rennnummern, Track und start_col aus Zeile 2"""
+        """Lese Rennnummern und start_col aus Zeile 2"""
         race_info = {}
         header_row = rows[1]  # Zeile 2 (Index 1)
 
         for i, cell in enumerate(header_row):
             if cell.strip().isdigit():
                 race_num = int(cell.strip())
-                # Rennnummer steht bei index i, 'Race' steht bei i-2
-                # start_col = i - 2 (wo 'Race' steht)
-                start_col = i - 2
+                # Rennnummer steht bei index i (=3 für Rennen 1)
+                # start_col = i - 3 (Spalte A = index 0)
+                start_col = i - 3
                 # Track steht bei i+1
                 track = header_row[i + 1].strip() if len(header_row) > i + 1 else ''
-                race_info[race_num] = {
-                    'start_col': start_col,
-                    'track': track,
-                }
+                if start_col >= 0:
+                    race_info[race_num] = {
+                        'start_col': start_col,
+                        'track': track,
+                    }
 
         return race_info
 
@@ -142,14 +145,20 @@ class Season2020_1Importer:
             if row_idx >= len(rows):
                 continue
             row = rows[row_idx]
-            # SR steht bei start_col+1
-            if len(row) > start_col + 1 and row[start_col + 1].strip() == 'SR':
+            # SR steht bei start_col+2
+            if len(row) > start_col + 2 and row[start_col + 2].strip() == 'SR':
                 laptime = row[start_col + 3].strip() if len(row) > start_col + 3 else ''
                 driver = row[start_col + 4].strip() if len(row) > start_col + 4 else ''
                 if laptime and driver:
                     laptime = laptime.replace(',', '.').replace('\n', '').replace('\r', '')
                     return driver, laptime
         return None, None
+
+    def normalize_grid_class(self, gc: str) -> str:
+        """Normalisiere Grid-Klasse: AI -> PRO"""
+        if gc == 'AI':
+            return 'PRO'
+        return gc
 
     def parse_race_results(self, rows: List[List[str]], start_col: int) -> List[Dict]:
         """Parse Ergebnisse für ein Rennen"""
@@ -159,12 +168,10 @@ class Season2020_1Importer:
             if len(row) <= start_col + 1:
                 continue
 
-            # +1: Pos
             pos_str = row[start_col + 1].strip()
             if not pos_str or not pos_str.isdigit():
                 continue
 
-            grid_num   = row[start_col + 2].strip() if len(row) > start_col + 2 else ''
             race_time  = row[start_col + 3].strip() if len(row) > start_col + 3 else ''
             driver     = row[start_col + 4].strip() if len(row) > start_col + 4 else ''
             team       = row[start_col + 5].strip() if len(row) > start_col + 5 else ''
@@ -175,6 +182,9 @@ class Season2020_1Importer:
 
             if not driver:
                 continue
+
+            # Normalisiere AI -> PRO
+            grid_class = self.normalize_grid_class(grid_class)
 
             def parse_int(s):
                 try:
@@ -220,7 +230,7 @@ class Season2020_1Importer:
             track_name = race_cols[race_num]['track']
 
             print(f"\n{'='*60}")
-            print(f"Rennen {race_num}: {track_name} am {race_data['date']} (race_id={self.race_id}, start_col={start_col})")
+            print(f"Rennen {race_num}: {track_name} am {race_data['date']} (race_id={self.race_id})")
             print('='*60)
 
             fl_driver, fl_time = self.parse_fastest_lap(rows, start_col)
@@ -247,7 +257,8 @@ class Season2020_1Importer:
             self.cursor.execute("DELETE FROM grids WHERE race_id = %s", (self.race_id,))
             self.conn.commit()
 
-            grid_classes = list(set(r['grid_class'] for r in results if r['grid_class'] in CLASS_TO_NUMBER))
+            # Nur gültige Grid-Klassen
+            grid_classes = list(set(r['grid_class'] for r in results if r['grid_class'] in VALID_CLASSES))
             print(f"  Grid-Klassen gefunden: {sorted(grid_classes)}")
             grid_map = self.insert_grids(grid_classes)
 
