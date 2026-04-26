@@ -21,12 +21,12 @@ CSV-Struktur:
 
 Spalten-Offsets (ab start_col):
 - +1: Pos
-- +2: Grid (1, 2, 3)
+- +2: Grid-Nummer (1, 2, 3)
 - +3: RaceTime
 - +4: Driver
 - +5: Team
 - +6: Punktebasis
-- +7: Clas (PRO/SP/AM/AI) - AI wird zu PRO normalisiert
+- +7: Clas (PRO/SP/AM) - wird als grid_label verwendet
 - +8: Gesamtpunkte
 - +9: Bonuspunkte
 """
@@ -57,21 +57,19 @@ RACE_DATA = {
     16: {'race_id': 40, 'date': '2020-05-11'},
 }
 
-# Gültige Grid-Klassen
-VALID_CLASSES = {'PRO', 'SP', 'AM'}
-
-# Grid-Klassen Mapping
-CLASS_TO_NUMBER = {
-    'PRO': '1',
-    'SP':  '2',
-    'AM':  '3',
-}
+# Gültige Grid-Nummern
+VALID_GRID_NUMS = {'1', '2', '3'}
 
 # Team-Normalisierung
 TEAM_NORMALIZATIONS = {
     'KotzBärTV': 'KOTZBÄR TV',
     'Rhein-Rur-Motorsport': 'RheinRur Motorsport',
     'Rhein-Ruhr-Motosport': 'RheinRur Motorsport',
+}
+
+# Fahrer-Normalisierung
+DRIVER_NORMALIZATIONS = {
+    'PrimeApeX21': 'PrimeapeX21',
 }
 
 # Spalten-Abstand zwischen Rennen
@@ -154,12 +152,6 @@ class Season2020_1Importer:
                     return driver, laptime
         return None, None
 
-    def normalize_grid_class(self, gc: str) -> str:
-        """Normalisiere Grid-Klasse: AI -> PRO"""
-        if gc == 'AI':
-            return 'PRO'
-        return gc
-
     def parse_race_results(self, rows: List[List[str]], start_col: int) -> List[Dict]:
         """Parse Ergebnisse für ein Rennen"""
         results = []
@@ -172,19 +164,25 @@ class Season2020_1Importer:
             if not pos_str or not pos_str.isdigit():
                 continue
 
+            grid_num   = row[start_col + 2].strip() if len(row) > start_col + 2 else ''
             race_time  = row[start_col + 3].strip() if len(row) > start_col + 3 else ''
             driver     = row[start_col + 4].strip() if len(row) > start_col + 4 else ''
             team       = row[start_col + 5].strip() if len(row) > start_col + 5 else ''
             pts_base   = row[start_col + 6].strip() if len(row) > start_col + 6 else ''
-            grid_class = row[start_col + 7].strip() if len(row) > start_col + 7 else ''
+            grid_label = row[start_col + 7].strip() if len(row) > start_col + 7 else ''
             pts_total  = row[start_col + 8].strip() if len(row) > start_col + 8 else ''
             pts_bonus  = row[start_col + 9].strip() if len(row) > start_col + 9 else ''
 
             if not driver:
                 continue
 
-            # Normalisiere AI -> PRO
-            grid_class = self.normalize_grid_class(grid_class)
+            # Fahrer-Normalisierung
+            if driver in DRIVER_NORMALIZATIONS:
+                driver = DRIVER_NORMALIZATIONS[driver]
+
+            # Team-Normalisierung
+            if team in TEAM_NORMALIZATIONS:
+                team = TEAM_NORMALIZATIONS[team]
 
             def parse_int(s):
                 try:
@@ -197,7 +195,8 @@ class Season2020_1Importer:
                 'driver': driver,
                 'race_time': self.parse_time(race_time),
                 'team': team,
-                'grid_class': grid_class,
+                'grid_num': grid_num,    # 1, 2, 3
+                'grid_label': grid_label, # PRO, SP, AM (für grid_class Feld)
                 'points_base': parse_int(pts_base),
                 'points_total': parse_int(pts_total),
                 'points_bonus': parse_int(pts_bonus),
@@ -257,16 +256,19 @@ class Season2020_1Importer:
             self.cursor.execute("DELETE FROM grids WHERE race_id = %s", (self.race_id,))
             self.conn.commit()
 
-            # Nur gültige Grid-Klassen
-            grid_classes = list(set(r['grid_class'] for r in results if r['grid_class'] in VALID_CLASSES))
-            print(f"  Grid-Klassen gefunden: {sorted(grid_classes)}")
-            grid_map = self.insert_grids(grid_classes)
+            # Grids: grid_num als grid_number UND grid_class
+            grid_nums = list(set(r['grid_num'] for r in results if r['grid_num'] in VALID_GRID_NUMS))
+            print(f"  Grid-Nummern gefunden: {sorted(grid_nums)}")
+            grid_map = self.insert_grids(grid_nums)
 
             self.insert_results(results, grid_map)
 
             print(f"  ✓ Rennen {race_num} importiert")
 
     def update_fastest_lap(self, fl_time: Optional[str], fl_driver: Optional[str]):
+        # Normalisiere Fahrername
+        if fl_driver in DRIVER_NORMALIZATIONS:
+            fl_driver = DRIVER_NORMALIZATIONS[fl_driver]
         fl_driver_id = self.drivers.get(fl_driver)
         self.cursor.execute("""
             UPDATE races SET fastest_lap_time = %s, fastest_lap_driver_id = %s
@@ -279,16 +281,11 @@ class Season2020_1Importer:
         new_teams = []
 
         for r in results:
-            team = r['team']
-            if team in TEAM_NORMALIZATIONS:
-                team = TEAM_NORMALIZATIONS[team]
-                r['team'] = team
-
             if r['driver'] and r['driver'] not in self.drivers:
                 new_drivers.append(r['driver'])
 
-            if team and team not in self.teams:
-                new_teams.append(team)
+            if r['team'] and r['team'] not in self.teams:
+                new_teams.append(r['team'])
 
         for team_name in new_teams:
             self.cursor.execute("INSERT IGNORE INTO teams (name) VALUES (%s)", (team_name,))
@@ -306,18 +303,17 @@ class Season2020_1Importer:
 
             print(f"  ✓ {len(new_teams)} neue Teams, {len(new_drivers)} neue Fahrer")
 
-    def insert_grids(self, grid_classes: List[str]) -> Dict[str, int]:
+    def insert_grids(self, grid_nums: List[str]) -> Dict[str, int]:
+        """Füge Grids ein - grid_number = grid_class = '1'/'2'/'3'"""
         grid_map = {}
 
-        for gc in sorted(grid_classes):
-            grid_number = CLASS_TO_NUMBER.get(gc, '1')
-
+        for gn in sorted(grid_nums):
             self.cursor.execute("""
                 INSERT INTO grids (race_id, grid_number, grid_class)
                 VALUES (%s, %s, %s)
-            """, (self.race_id, grid_number, gc))
+            """, (self.race_id, gn, gn))
 
-            grid_map[gc] = self.cursor.lastrowid
+            grid_map[gn] = self.cursor.lastrowid
 
         return grid_map
 
@@ -350,11 +346,11 @@ class Season2020_1Importer:
         # Berechne finish_pos_grid
         grid_positions = {}
         for r in sorted(results, key=lambda x: x['pos']):
-            gc = r['grid_class']
-            if gc not in grid_positions:
-                grid_positions[gc] = 0
-            grid_positions[gc] += 1
-            r['finish_pos_grid'] = grid_positions[gc]
+            gn = r['grid_num']
+            if gn not in grid_positions:
+                grid_positions[gn] = 0
+            grid_positions[gn] += 1
+            r['finish_pos_grid'] = grid_positions[gn]
 
         self.calculate_time_percent(results)
 
@@ -373,10 +369,10 @@ class Season2020_1Importer:
             seen_drivers.add(driver_id)
 
             team_id = self.teams.get(r['team']) if r['team'] else None
-            grid_id = grid_map.get(r['grid_class'])
+            grid_id = grid_map.get(r['grid_num'])
 
             if grid_id is None:
-                print(f"  ⚠️  Grid '{r['grid_class']}' nicht gefunden, überspringe")
+                print(f"  ⚠️  Grid '{r['grid_num']}' nicht gefunden, überspringe")
                 continue
 
             status = 'DNF' if r['race_time'] is None else 'FIN'
