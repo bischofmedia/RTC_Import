@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-RTC Season 2020.1 Import Script - Horizontales Format (Gesamt-Ergebnisse)
+RTC Season 2020.1 Import Script - Gesamt-Ergebnisse Format
 Renndaten (Datum, race_id) sind direkt im Script hinterlegt.
 Die bestehenden Races in der DB werden NICHT gelöscht, nur Ergebnisse neu importiert.
 
@@ -12,29 +12,29 @@ Environment-Variablen (erforderlich):
     SEASON_ID=2 (für Season 2020.1)
 
 CSV-Struktur:
-- Zeile 2: Race-Nummer in Spalte D (index 3), Track in Spalte E (index 4)
+- Zeile 2: 'Race' in Spalte B (1), leer, Rennnummer in D (3), Track in E (4)
 - Zeile 4/5: SR (schnellste Runde)
 - Zeile 6: Header
-- Zeilen 7-53: Ergebnisse
+- Zeilen 7-53: Ergebnisse (Index 6-52)
 - Abstand zwischen Rennen: 10 Spalten
 
-Spalten-Offsets (ab start_col):
-- +0: Pos
-- +1: Grid (1, 2, 3)
-- +2: RaceTime
-- +3: Driver
-- +4: Team
-- +5: Pkt (Punktebasis)
-- +6: Clas (PRO/SP/AM - Grid-Klasse)
-- +7: Gesamtpunkte
-- +8: Bonuspunkte
+Spalten-Offsets (ab start_col=1 für Rennen 1):
+- +0: 'Race' Label
+- +1: Pos
+- +2: Grid (1, 2, 3)
+- +3: RaceTime
+- +4: Driver
+- +5: Team
+- +6: Punktebasis
+- +7: Clas (PRO/SP/AM/AI)
+- +8: Gesamtpunkte
+- +9: Bonuspunkte
 """
 
 import os
 import sys
 import csv
 import mysql.connector
-from datetime import datetime
 from typing import Dict, List, Optional, Tuple
 
 # Renndaten direkt hinterlegt (aus DB ausgelesen)
@@ -57,45 +57,12 @@ RACE_DATA = {
     16: {'race_id': 40, 'date': '2020-05-11'},
 }
 
-# Vehicle-Mapping
-VEHICLE_MAP = {
-    '': 10,
-    'Aston Martin Vantage': 3,
-    'Aston Martin DBR9': 2,
-    'Mercedes-Benz AMG': 28,
-    'Chevrolet CORVETTE C7': 10,
-    'Porsche 911 RSR': 37,
-    'Mazda ATENZA': 24,
-    'Honda NSX': 19,
-    'BMW M6': 7,
-    'BMW Z4': 9,
-    'Nissan GT-R NISMO': 32,
-    'Jaguar F-TYPE': 21,
-    'Volkswagen BEETLE': 45,
-    'Volkswagen GTI VGT': 46,
-    'Mitsubishi LANCER EVO': 30,
-    'Hyundai GENESIS': 20,
-    'Toyota FT-1 VGT': 42,
-    'Mazda RX': 25,
-    'Mercedes-Benz SLS AMG': 29,
-    'Peugeot RCZ': 35,
-    'Lexus RC F': 23,
-    'Ford MUSTANG': 17,
-    'Toyota GR Supra': 43,
-    'Subaru WRX': 40,
-    'Audi R8 LMS': 4,
-    'Ford GT LM SPEC II': 14,
-    'Alfa Romeo 4C': 1,
-    'McLaren F1 GTR': 27,
-    'Peugeot VGT': 36,
-    'McLaren 650S': 26,
-    'Ferrari 458 ITALIA': 13,
-    'Lamborghini HURACAN': 22,
-    'Dodge VIPER SRT': 12,
-    "Nissan GT-R N24 '13": 31,
-    'BMW M3 GT': 6,
-    'Citroen GT': 11,
-    'Renault Sport R.S.01': 38,
+# Grid-Klassen Mapping
+CLASS_TO_NUMBER = {
+    'PRO': '1',
+    'SP':  '2',
+    'AM':  '3',
+    'AI':  '1',  # AI = alte Bezeichnung für PRO
 }
 
 # Team-Normalisierung
@@ -105,25 +72,15 @@ TEAM_NORMALIZATIONS = {
     'Rhein-Ruhr-Motosport': 'RheinRur Motorsport',
 }
 
-# Grid-Klassen Mapping (Clas Spalte -> grid_number)
-# PRO=1, SP=2, AM=3 aber Grid-Nummer aus Spalte +1
-CLASS_TO_NUMBER = {
-    'PRO': '1',
-    'SP': '2',
-    'AM': '3',
-    'AI': '1',  # AI = alte Bezeichnung für PRO
-}
-
 # Spalten-Abstand zwischen Rennen
 RACE_COL_STEP = 10
 
-# Datenzeilen: 7-53 (Index 6-52)
+# Datenzeilen: Index 6-52 (Zeilen 7-53)
 DATA_ROW_START = 6
 DATA_ROW_END = 53
 
 
 class Season2020_1Importer:
-    """Import für Season 2020.1"""
 
     def __init__(self, races_csv: str):
         self.races_csv = races_csv
@@ -143,7 +100,6 @@ class Season2020_1Importer:
         self.race_id = None
 
     def load_reference_data(self):
-        """Lade Fahrer und Teams"""
         print("\nLade Referenzdaten...")
 
         self.cursor.execute("SELECT driver_id, psn_name FROM drivers")
@@ -154,39 +110,42 @@ class Season2020_1Importer:
         self.teams = {name: tid for tid, name in self.cursor.fetchall()}
         print(f"  ✓ {len(self.teams)} Teams")
 
-    def get_race_column_ranges(self, rows: List[List[str]]) -> Dict[int, int]:
-        """Lese Rennnummern und start_col aus Zeile 2"""
-        race_cols = {}
+    def get_race_columns(self, rows: List[List[str]]) -> Dict[int, Dict]:
+        """Lese Rennnummern, Track und start_col aus Zeile 2"""
+        race_info = {}
         header_row = rows[1]  # Zeile 2 (Index 1)
 
         for i, cell in enumerate(header_row):
             if cell.strip().isdigit():
                 race_num = int(cell.strip())
-                # start_col ist 1 Spalte vor der Rennnummer (Pos-Spalte)
-                start_col = i - 1
-                if start_col >= 0:
-                    race_cols[race_num] = start_col
+                # Rennnummer steht bei index i, 'Race' steht bei i-2
+                # start_col = i - 2 (wo 'Race' steht)
+                start_col = i - 2
+                # Track steht bei i+1
+                track = header_row[i + 1].strip() if len(header_row) > i + 1 else ''
+                race_info[race_num] = {
+                    'start_col': start_col,
+                    'track': track,
+                }
 
-        return race_cols
+        return race_info
 
     def parse_time(self, time_str: str) -> Optional[str]:
-        """Parse Zeitformat"""
         if not time_str or time_str.strip() in ('DNF', '-', ''):
             return None
-        time_str = time_str.replace(',', '.').strip()
-        # Entferne Zeilenumbrüche
-        time_str = time_str.replace('\n', '').replace('\r', '')
+        time_str = time_str.replace(',', '.').replace('\n', '').replace('\r', '').strip()
         return time_str if time_str else None
 
     def parse_fastest_lap(self, rows: List[List[str]], start_col: int) -> Tuple[Optional[str], Optional[str]]:
-        """Extrahiere schnellste Runde aus SR-Zeilen (Zeile 4 oder 5)"""
-        # SR steht in Zeile 4 (Index 3) oder 5 (Index 4)
+        """Extrahiere schnellste Runde aus SR-Zeilen"""
         for row_idx in [3, 4]:
+            if row_idx >= len(rows):
+                continue
             row = rows[row_idx]
-            if len(row) > start_col and row[start_col].strip() == 'SR':
-                # SR, leer, laptime, driver
-                laptime = row[start_col + 2].strip() if len(row) > start_col + 2 else ''
-                driver = row[start_col + 3].strip() if len(row) > start_col + 3 else ''
+            # SR steht bei start_col+1
+            if len(row) > start_col + 1 and row[start_col + 1].strip() == 'SR':
+                laptime = row[start_col + 3].strip() if len(row) > start_col + 3 else ''
+                driver = row[start_col + 4].strip() if len(row) > start_col + 4 else ''
                 if laptime and driver:
                     laptime = laptime.replace(',', '.').replace('\n', '').replace('\r', '')
                     return driver, laptime
@@ -197,62 +156,41 @@ class Season2020_1Importer:
         results = []
 
         for row in rows[DATA_ROW_START:DATA_ROW_END]:
-            if len(row) <= start_col:
+            if len(row) <= start_col + 1:
                 continue
 
-            pos_str = row[start_col].strip()
+            # +1: Pos
+            pos_str = row[start_col + 1].strip()
             if not pos_str or not pos_str.isdigit():
                 continue
 
-            # Spalten-Offsets:
-            # +0: Pos
-            # +1: Grid (1, 2, 3)
-            # +2: RaceTime
-            # +3: Driver
-            # +4: Team
-            # +5: Pkt (Punktebasis)
-            # +6: Clas (PRO/SP/AM/AI)
-            # +7: Gesamtpunkte
-            # +8: Bonuspunkte
-            grid_num = row[start_col + 1].strip() if len(row) > start_col + 1 else ''
-            race_time = row[start_col + 2].strip() if len(row) > start_col + 2 else ''
-            driver = row[start_col + 3].strip() if len(row) > start_col + 3 else ''
-            team = row[start_col + 4].strip() if len(row) > start_col + 4 else ''
-            points_base = row[start_col + 5].strip() if len(row) > start_col + 5 else ''
-            grid_class = row[start_col + 6].strip() if len(row) > start_col + 6 else ''
-            points_total = row[start_col + 7].strip() if len(row) > start_col + 7 else ''
-            points_bonus = row[start_col + 8].strip() if len(row) > start_col + 8 else ''
+            grid_num   = row[start_col + 2].strip() if len(row) > start_col + 2 else ''
+            race_time  = row[start_col + 3].strip() if len(row) > start_col + 3 else ''
+            driver     = row[start_col + 4].strip() if len(row) > start_col + 4 else ''
+            team       = row[start_col + 5].strip() if len(row) > start_col + 5 else ''
+            pts_base   = row[start_col + 6].strip() if len(row) > start_col + 6 else ''
+            grid_class = row[start_col + 7].strip() if len(row) > start_col + 7 else ''
+            pts_total  = row[start_col + 8].strip() if len(row) > start_col + 8 else ''
+            pts_bonus  = row[start_col + 9].strip() if len(row) > start_col + 9 else ''
 
             if not driver:
                 continue
 
-            # Parse Punkte
-            try:
-                pts_base = int(points_base) if points_base.isdigit() else 0
-            except Exception:
-                pts_base = 0
-
-            try:
-                pts_total = int(points_total) if points_total.isdigit() else 0
-            except Exception:
-                pts_total = 0
-
-            try:
-                pts_bonus = int(points_bonus.replace('+', '')) if points_bonus.replace('+', '').isdigit() else 0
-            except Exception:
-                pts_bonus = 0
+            def parse_int(s):
+                try:
+                    return int(s.replace('+', ''))
+                except Exception:
+                    return 0
 
             result = {
                 'pos': int(pos_str),
                 'driver': driver,
-                'car': '',  # Kein Fahrzeug in dieser CSV
                 'race_time': self.parse_time(race_time),
                 'team': team,
-                'grid_num': grid_num,   # 1, 2, 3
-                'grid_class': grid_class,  # PRO, SP, AM, AI
-                'points_base': pts_base,
-                'points_total': pts_total,
-                'points_bonus': pts_bonus,
+                'grid_class': grid_class,
+                'points_base': parse_int(pts_base),
+                'points_total': parse_int(pts_total),
+                'points_bonus': parse_int(pts_bonus),
                 'time_percent': None,
                 'finish_pos_grid': None,
             }
@@ -262,16 +200,13 @@ class Season2020_1Importer:
         return results
 
     def process_all_races(self):
-        """Verarbeite alle Rennen"""
-
         print(f"\nParse Races CSV: {self.races_csv}")
 
         with open(self.races_csv, 'r', encoding='utf-8') as f:
             reader = csv.reader(f)
             rows = list(reader)
 
-        # Lese Rennnummern und Spalten aus Zeile 2
-        race_cols = self.get_race_column_ranges(rows)
+        race_cols = self.get_race_columns(rows)
         print(f"  ✓ {len(race_cols)} Rennen gefunden: {sorted(race_cols.keys())}")
 
         for race_num in sorted(race_cols.keys()):
@@ -281,22 +216,18 @@ class Season2020_1Importer:
 
             race_data = RACE_DATA[race_num]
             self.race_id = race_data['race_id']
-            start_col = race_cols[race_num]
-
-            # Track-Name aus Zeile 2
-            track_name = rows[1][start_col + 3].strip() if len(rows[1]) > start_col + 3 else ''
+            start_col = race_cols[race_num]['start_col']
+            track_name = race_cols[race_num]['track']
 
             print(f"\n{'='*60}")
-            print(f"Rennen {race_num}: {track_name} am {race_data['date']} (race_id={self.race_id})")
+            print(f"Rennen {race_num}: {track_name} am {race_data['date']} (race_id={self.race_id}, start_col={start_col})")
             print('='*60)
 
-            # Schnellste Runde
             fl_driver, fl_time = self.parse_fastest_lap(rows, start_col)
             if fl_driver and fl_time:
                 print(f"  Schnellste Runde: {fl_time} von {fl_driver}")
                 self.update_fastest_lap(fl_time, fl_driver)
 
-            # Ergebnisse parsen
             results = self.parse_race_results(rows, start_col)
             print(f"  Ergebnisse: {len(results)}")
 
@@ -304,10 +235,9 @@ class Season2020_1Importer:
                 print("  ⚠️  Keine Ergebnisse, überspringe")
                 continue
 
-            # Neue Fahrer/Teams anlegen
             self.insert_new_drivers_and_teams(results)
 
-            # Alte Ergebnisse löschen
+            # Lösche alte Ergebnisse
             self.cursor.execute("SELECT result_id FROM race_results WHERE race_id = %s", (self.race_id,))
             result_ids = [r[0] for r in self.cursor.fetchall()]
             if result_ids:
@@ -317,22 +247,16 @@ class Season2020_1Importer:
             self.cursor.execute("DELETE FROM grids WHERE race_id = %s", (self.race_id,))
             self.conn.commit()
 
-            # Grids anlegen
-            grid_classes = list(set(r['grid_class'] for r in results if r['grid_class']))
+            grid_classes = list(set(r['grid_class'] for r in results if r['grid_class'] in CLASS_TO_NUMBER))
             print(f"  Grid-Klassen gefunden: {sorted(grid_classes)}")
             grid_map = self.insert_grids(grid_classes)
 
-            # Ergebnisse einfügen
             self.insert_results(results, grid_map)
 
             print(f"  ✓ Rennen {race_num} importiert")
 
     def update_fastest_lap(self, fl_time: Optional[str], fl_driver: Optional[str]):
-        """Update schnellste Runde"""
-        fl_driver_id = None
-        if fl_driver and fl_driver in self.drivers:
-            fl_driver_id = self.drivers[fl_driver]
-
+        fl_driver_id = self.drivers.get(fl_driver)
         self.cursor.execute("""
             UPDATE races SET fastest_lap_time = %s, fastest_lap_driver_id = %s
             WHERE race_id = %s
@@ -340,7 +264,6 @@ class Season2020_1Importer:
         self.conn.commit()
 
     def insert_new_drivers_and_teams(self, results: List[Dict]):
-        """Füge neue Fahrer/Teams ein"""
         new_drivers = []
         new_teams = []
 
@@ -360,10 +283,7 @@ class Season2020_1Importer:
             self.cursor.execute("INSERT IGNORE INTO teams (name) VALUES (%s)", (team_name,))
 
         for driver_name in new_drivers:
-            self.cursor.execute(
-                "INSERT IGNORE INTO drivers (psn_name) VALUES (%s)",
-                (driver_name,)
-            )
+            self.cursor.execute("INSERT IGNORE INTO drivers (psn_name) VALUES (%s)", (driver_name,))
 
         if new_teams or new_drivers:
             self.conn.commit()
@@ -376,7 +296,6 @@ class Season2020_1Importer:
             print(f"  ✓ {len(new_teams)} neue Teams, {len(new_drivers)} neue Fahrer")
 
     def insert_grids(self, grid_classes: List[str]) -> Dict[str, int]:
-        """Füge Grids ein"""
         grid_map = {}
 
         for gc in sorted(grid_classes):
@@ -392,8 +311,6 @@ class Season2020_1Importer:
         return grid_map
 
     def calculate_time_percent(self, results: List[Dict]):
-        """Berechne time_percent für alle Fahrer"""
-
         def time_to_seconds(time_str: str) -> float:
             if not time_str:
                 return 0
@@ -419,8 +336,6 @@ class Season2020_1Importer:
             r['time_percent'] = (seconds / fastest_seconds) * 100
 
     def insert_results(self, results: List[Dict], grid_map: Dict[str, int]):
-        """Füge Results ein"""
-
         # Berechne finish_pos_grid
         grid_positions = {}
         for r in sorted(results, key=lambda x: x['pos']):
@@ -430,7 +345,6 @@ class Season2020_1Importer:
             grid_positions[gc] += 1
             r['finish_pos_grid'] = grid_positions[gc]
 
-        # Berechne time_percent
         self.calculate_time_percent(results)
 
         seen_drivers = set()
@@ -470,7 +384,6 @@ class Season2020_1Importer:
         self.conn.commit()
 
     def run(self):
-        """Hauptprozess"""
         print("="*60)
         print("RTC Season 2020.1 Import - Gesamt-Ergebnisse Format")
         print("="*60)
