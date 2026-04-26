@@ -20,7 +20,7 @@ import sys
 import csv
 import mysql.connector
 from datetime import datetime
-from typing import Dict, List, Tuple, Optional
+from typing import Dict, List, Optional, Tuple
 
 # Track-Mapping
 TRACK_NAME_MAP = {
@@ -43,8 +43,15 @@ TRACK_NAME_MAP = {
     'Nürburgring 24h': ('Nürburgring', '24h Layout'),
     'Deep Forest Raceway': ('Deep Forest Raceway', 'Full Course'),
     'Watkins Glen': ('Watkins Glen', 'Full Course'),
-    'Barcelona': ('Circuit de Barcelona-Catalunya', 'Full Course'),
+    'Barcelona': ('Barcelona', 'GP'),
     'Daytona': ('Daytona International Speedway', 'Road Course'),
+    'Circuit de Barcelona - GP': ('Barcelona', 'GP'),
+    'LeMans': ('LeMans', 'Full Course'),
+    'Dragon Trail - Gardens': ('Dragon Trail', 'Gardens'),
+    'Sainte-Croix - A': ('Sainte-Croix', 'Layout A'),
+    'Sardegna - A': ('Sardegna - Road Track', 'A'),
+    'Suzuka Circuit': ('Suzuka Circuit', 'Full Course'),
+    'Laguna Seca': ('Laguna Seca', 'Full Course'),
 }
 
 # Vehicle-Mapping
@@ -85,6 +92,7 @@ VEHICLE_MAP = {
     "Nissan GT-R N24 '13": 31,
     'BMW M3 GT': 6,
     'Citroen GT': 11,
+    'Renault Sport R.S.01': 38,
 }
 
 # Team-Normalisierung
@@ -104,6 +112,9 @@ CLASS_TO_NUMBER = {
 # Spalten-Abstand zwischen Rennen (Season 2021.2)
 RACE_COL_STEP = 17
 
+# Max Zeilen pro Rennen (bis Zeile 63 = Index 62)
+MAX_DATA_ROW = 63
+
 
 class Season2021_2Importer:
     """Import für Season 2021.2 mit horizontalem Format"""
@@ -113,7 +124,6 @@ class Season2021_2Importer:
         self.streams_csv = streams_csv
         self.season_id = int(os.getenv('SEASON_ID'))
 
-        # DB-Verbindung
         self.conn = mysql.connector.connect(
             host=os.getenv('DB_HOST'),
             port=int(os.getenv('DB_PORT', '3306')),
@@ -123,7 +133,6 @@ class Season2021_2Importer:
         )
         self.cursor = self.conn.cursor()
 
-        # Caches
         self.drivers = {}
         self.teams = {}
         self.tracks = {}
@@ -200,7 +209,6 @@ class Season2021_2Importer:
     def parse_fastest_lap(self, sr_row: List[str], start_col: int) -> Tuple[Optional[str], Optional[str]]:
         """Extrahiere schnellste Runde aus SR-Zeile"""
         try:
-            # Season 2021.2: SR, DRIVER, , CAR, , LAPTIME
             driver_col = start_col + 1
             time_col = start_col + 5
 
@@ -222,8 +230,8 @@ class Season2021_2Importer:
         """Parse Ergebnisse für ein Rennen"""
         results = []
 
-        # Season 2021.2: Daten ab Zeile 6 (Index 5)
-        for row in data_rows[5:]:
+        # Season 2021.2: Daten ab Zeile 6 (Index 5), max bis MAX_DATA_ROW
+        for row in data_rows[5:MAX_DATA_ROW]:
             if len(row) <= start_col:
                 continue
 
@@ -232,16 +240,8 @@ class Season2021_2Importer:
                 continue
 
             # Season 2021.2 Layout (kein NAT-Feld):
-            # +0: Pos
-            # +1: Driver
-            # +2: (leer)
-            # +3: Car
-            # +4: Livery
-            # +5: RaceTime
-            # +6: Diff
-            # +7: Team
-            # +8: CL (Grid-Klasse)
-            nat = ''
+            # +0: Pos, +1: Driver, +2: (leer), +3: Car
+            # +4: Livery, +5: RaceTime, +6: Diff, +7: Team, +8: CL
             driver = row[start_col + 1].strip() if len(row) > start_col + 1 else ''
             car = row[start_col + 3].strip() if len(row) > start_col + 3 else ''
             race_time = row[start_col + 5].strip() if len(row) > start_col + 5 else ''
@@ -253,14 +253,14 @@ class Season2021_2Importer:
 
             result = {
                 'pos': int(pos_str),
-                'nat': nat,
+                'nat': '',
                 'driver': driver,
                 'car': car,
                 'race_time': self.parse_time(race_time),
-                'penalty': '',
                 'team': team,
                 'grid_class': grid_class,
                 'time_percent': None,
+                'finish_pos_grid': None,
             }
 
             results.append(result)
@@ -278,7 +278,7 @@ class Season2021_2Importer:
             reader = csv.reader(f)
             rows = list(reader)
 
-        sr_row = rows[3]  # Zeile 4 = SR (schnellste Runde)
+        sr_row = rows[3]
 
         for i in range(16):
             race_num = i + 1
@@ -312,7 +312,6 @@ class Season2021_2Importer:
             print(f"  Version ID: {version_id}")
 
             self.insert_new_drivers_and_teams(results)
-
             self.insert_race(race_num, info['date'], track_id, version_id, fl_time, fl_driver)
 
             grid_classes = list(set(r['grid_class'] for r in results if r['grid_class'] in CLASS_TO_NUMBER))
@@ -438,24 +437,42 @@ class Season2021_2Importer:
     def insert_results(self, results: List[Dict], grid_map: Dict[str, int]):
         """Füge Results ein"""
 
+        # Berechne finish_pos_grid (Position innerhalb Grid-Klasse)
+        grid_positions = {}
+        for r in sorted(results, key=lambda x: x['pos']):
+            gc = r['grid_class']
+            if gc not in grid_positions:
+                grid_positions[gc] = 0
+            grid_positions[gc] += 1
+            r['finish_pos_grid'] = grid_positions[gc]
+
+        # Berechne time_percent
         self.calculate_time_percent(results)
+
+        seen_drivers = set()
 
         for r in results:
             driver_id = self.drivers.get(r['driver'])
-            team_id = self.teams.get(r['team']) if r['team'] else None
-            grid_id = grid_map.get(r['grid_class'])
-            vehicle_id = VEHICLE_MAP.get(r['car'])
 
             if not driver_id:
                 print(f"  ⚠️  Fahrer '{r['driver']}' nicht gefunden")
                 continue
+
+            if driver_id in seen_drivers:
+                print(f"  ⚠️  Fahrer '{r['driver']}' doppelt, überspringe")
+                continue
+            seen_drivers.add(driver_id)
+
+            team_id = self.teams.get(r['team']) if r['team'] else None
+            grid_id = grid_map.get(r['grid_class'])
+            vehicle_id = VEHICLE_MAP.get(r['car'])
 
             if vehicle_id is None:
                 print(f"  ⚠️  Fahrzeug '{r['car']}' nicht in Map")
                 continue
 
             if grid_id is None:
-                print(f"  ⚠️  Grid-Klasse '{r['grid_class']}' nicht gefunden, überspringe")
+                print(f"  ⚠️  Grid '{r['grid_class']}' nicht gefunden, überspringe")
                 continue
 
             status = 'DNF' if r['race_time'] is None else 'FIN'
@@ -464,11 +481,11 @@ class Season2021_2Importer:
             self.cursor.execute("""
                 INSERT INTO race_results
                 (race_id, driver_id, team_id, vehicle_id, grid_id,
-                 finish_pos_overall, race_time, penalty_seconds, status,
+                 finish_pos_overall, finish_pos_grid, race_time, penalty_seconds, status,
                  time_percent, points_base, points_bonus, points_total)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 0, 0, 0)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 0, 0, 0)
             """, (self.race_id, driver_id, team_id, vehicle_id, grid_id,
-                  r['pos'], r['race_time'], 0, status, time_percent))
+                  r['pos'], r.get('finish_pos_grid'), r['race_time'], 0, status, time_percent))
 
         self.conn.commit()
 
