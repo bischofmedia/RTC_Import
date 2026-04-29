@@ -207,6 +207,38 @@ def check_season(season_id, show_details=False):
     print(f"  bonus_rare_vehicle:    {'✓ ' + str(bonus[3]) + ' Einträge' if bonus[3] else '⚠️  keine Daten'}")
     print(f"  bonus_vehicle_loyalty: {'✓ ' + str(bonus[4]) + ' Einträge' if bonus[4] else '⚠️  keine Daten'}")
 
+
+    # Plausibilitätsprüfung: points_base + alle Boni = points_total
+    cursor.execute("""
+        SELECT d.psn_name, r.race_number,
+               rr.points_base, rr.bonus_podium, rr.bonus_fastest_lap,
+               rr.bonus_rare_vehicle, rr.bonus_vehicle_loyalty, rr.points_total
+        FROM race_results rr
+        JOIN races r ON rr.race_id = r.race_id
+        JOIN drivers d ON rr.driver_id = d.driver_id
+        WHERE r.season_id = %s
+        AND (rr.points_base + rr.bonus_podium + rr.bonus_fastest_lap +
+             rr.bonus_rare_vehicle + rr.bonus_vehicle_loyalty) != rr.points_total
+        AND rr.points_total > 0
+        LIMIT 10
+    """, (season_id,))
+    plausibility_errors = cursor.fetchall()
+
+    if plausibility_errors:
+        print(f"\n  \u26a0\ufe0f  Plausibilitätsfehler (basis+boni \u2260 gesamt):")
+        for driver, race_num, base, pod, fl, rare, loy, ptotal in plausibility_errors:
+            calc = base + pod + fl + rare + loy
+            print(f"    R{race_num} {driver:25} {base}+{pod}+{fl}+{rare}+{loy}={calc} \u2260 {ptotal}")
+    else:
+        cursor.execute("""
+            SELECT COUNT(*) FROM race_results rr
+            JOIN races r ON rr.race_id = r.race_id
+            WHERE r.season_id = %s AND rr.points_total > 0
+        """, (season_id,))
+        checked = cursor.fetchone()[0]
+        if checked > 0:
+            print(f"  \u2713 Plausibilität OK ({checked} Einträge geprüft)")
+
     # Datenqualität
     issues = []
 
