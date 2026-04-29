@@ -239,6 +239,40 @@ def check_season(season_id, show_details=False):
         if checked > 0:
             print(f"  \u2713 Plausibilität OK ({checked} Einträge geprüft)")
 
+
+    # Zeitplausibilität: race_time + penalty_seconds = race_time_final
+    cursor.execute("""
+        SELECT d.psn_name, r.race_number,
+               rr.race_time, rr.penalty_seconds, rr.race_time_final
+        FROM race_results rr
+        JOIN races r ON rr.race_id = r.race_id
+        JOIN drivers d ON rr.driver_id = d.driver_id
+        WHERE r.season_id = %s
+        AND rr.penalty_seconds > 0
+        AND rr.race_time IS NOT NULL
+        AND rr.race_time_final IS NOT NULL
+        AND ABS(TIME_TO_SEC(rr.race_time) + rr.penalty_seconds - TIME_TO_SEC(rr.race_time_final)) > 1
+        LIMIT 10
+    """, (season_id,))
+    time_errors = cursor.fetchall()
+
+    print(f"\n\u23f1\ufe0f  Zeitplausibilität (race_time + strafe = race_time_final):")
+    if time_errors:
+        print(f"  \u26a0\ufe0f  Fehler gefunden:")
+        for driver, race_num, rt, penalty, rtf in time_errors:
+            print(f"    R{race_num} {driver:25} {rt} + {penalty}s \u2260 {rtf}")
+    else:
+        cursor.execute("""
+            SELECT COUNT(*) FROM race_results rr
+            JOIN races r ON rr.race_id = r.race_id
+            WHERE r.season_id = %s AND rr.penalty_seconds > 0
+        """, (season_id,))
+        checked = cursor.fetchone()[0]
+        if checked > 0:
+            print(f"  \u2713 OK ({checked} Einträge mit Strafe geprüft)")
+        else:
+            print(f"  \u2139\ufe0f  Keine Strafen in dieser Season")
+
     # Datenqualität
     issues = []
 
