@@ -241,12 +241,13 @@ class Season2021_2Importer:
 
             # Season 2021.2 Layout (kein NAT-Feld):
             # +0: Pos, +1: Driver, +2: (leer), +3: Car
-            # +4: Livery, +5: RaceTime, +6: Diff, +7: Team, +8: CL
+            # +4: Livery, +5: RaceTime, +6: Diff, +7: Team, +8: CL, +9: G (Grid-Nummer)
             driver = row[start_col + 1].strip() if len(row) > start_col + 1 else ''
             car = row[start_col + 3].strip() if len(row) > start_col + 3 else ''
             race_time = row[start_col + 5].strip() if len(row) > start_col + 5 else ''
             team = row[start_col + 7].strip() if len(row) > start_col + 7 else ''
             grid_class = row[start_col + 8].strip() if len(row) > start_col + 8 else ''
+            grid_number = row[start_col + 9].strip() if len(row) > start_col + 9 else ''
 
             if not driver:
                 continue
@@ -259,6 +260,7 @@ class Season2021_2Importer:
                 'race_time': self.parse_time(race_time),
                 'team': team,
                 'grid_class': grid_class,
+                'grid_number': grid_number,
                 'time_percent': None,
                 'finish_pos_grid': None,
             }
@@ -316,7 +318,15 @@ class Season2021_2Importer:
 
             grid_classes = list(set(r['grid_class'] for r in results if r['grid_class'] in CLASS_TO_NUMBER))
             print(f"  Grid-Klassen gefunden: {grid_classes}")
-            grid_map = self.insert_grids(grid_classes)
+            # Grids nach grid_number anlegen (nicht nach grid_class)
+            grid_numbers = {}
+            for r in results:
+                gn = r['grid_number']
+                gc = r['grid_class']
+                if gn and gc in CLASS_TO_NUMBER:
+                    grid_numbers[gn] = gc  # grid_number -> grid_class
+            print(f"  Grid-Nummern gefunden: {sorted(grid_numbers.keys())}")
+            grid_map = self.insert_grids(grid_numbers)
 
             self.insert_results(results, grid_map)
 
@@ -391,19 +401,19 @@ class Season2021_2Importer:
         self.race_id = self.cursor.lastrowid
         self.conn.commit()
 
-    def insert_grids(self, grid_classes: List[str]) -> Dict[str, int]:
-        """Füge Grids ein, returns {grid_class: grid_id}"""
+    def insert_grids(self, grid_numbers: Dict[str, str]) -> Dict[str, int]:
+        """Füge Grids ein, returns {grid_number: grid_id}"""
         grid_map = {}
 
-        for gc in sorted(grid_classes):
-            grid_number = CLASS_TO_NUMBER.get(gc, '1')
+        for gn in sorted(grid_numbers.keys()):
+            gc = grid_numbers[gn]
 
             self.cursor.execute("""
                 INSERT INTO grids (race_id, grid_number, grid_class)
                 VALUES (%s, %s, %s)
-            """, (self.race_id, grid_number, gc))
+            """, (self.race_id, gn, gc))
 
-            grid_map[gc] = self.cursor.lastrowid
+            grid_map[gn] = self.cursor.lastrowid
 
         return grid_map
 
@@ -437,14 +447,14 @@ class Season2021_2Importer:
     def insert_results(self, results: List[Dict], grid_map: Dict[str, int]):
         """Füge Results ein"""
 
-        # Berechne finish_pos_grid (Position innerhalb Grid-Klasse)
+        # Berechne finish_pos_grid (Position innerhalb Grid-Nummer)
         grid_positions = {}
         for r in sorted(results, key=lambda x: x['pos']):
-            gc = r['grid_class']
-            if gc not in grid_positions:
-                grid_positions[gc] = 0
-            grid_positions[gc] += 1
-            r['finish_pos_grid'] = grid_positions[gc]
+            gn = r['grid_number']
+            if gn not in grid_positions:
+                grid_positions[gn] = 0
+            grid_positions[gn] += 1
+            r['finish_pos_grid'] = grid_positions[gn]
 
         # Berechne time_percent
         self.calculate_time_percent(results)
@@ -464,7 +474,7 @@ class Season2021_2Importer:
             seen_drivers.add(driver_id)
 
             team_id = self.teams.get(r['team']) if r['team'] else None
-            grid_id = grid_map.get(r['grid_class'])
+            grid_id = grid_map.get(r['grid_number'])
             vehicle_id = VEHICLE_MAP.get(r['car'])
 
             if vehicle_id is None:
