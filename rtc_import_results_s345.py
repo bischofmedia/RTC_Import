@@ -64,29 +64,31 @@ SEASON_FORMATS = {
 }
 
 # Spalten-Indizes innerhalb eines Renn-Blocks (0-basiert, relativ zum Block-Start)
-# B=1: Pos, C=2: Driver, E=4: Fahrzeug, G=6: RaceTime,
-# I=8: Team, K=10: Grid, L=11: Punkte ohne Bonus
-COL_POS      = 1   # B
-COL_DRIVER   = 2   # C
-COL_VEHICLE  = 4   # E
-COL_TIME     = 6   # G
-COL_TEAM     = 8   # I
-COL_GRID     = 10  # K
-COL_PTS_BASE = 11  # L
+# Block-Start = 1 fuer Rennen 1 (Spalte B=Index 1)
+# Absoluter Index = block_start + COL_X
+# Rennen 1: B=1+0=1(Pos), C=1+1=2(Driver), E=1+3=4(Car), G=1+5=6(Zeit),
+#           I=1+7=8(Team), K=1+9=10(Grid), L=1+10=11(Basis)
+COL_POS      = 0   # B: Position
+COL_DRIVER   = 1   # C: Driver
+COL_VEHICLE  = 3   # E: Fahrzeug
+COL_TIME     = 5   # G: RaceTime
+COL_TEAM     = 7   # I: Team
+COL_GRID     = 9   # K: Grid
+COL_PTS_BASE = 10  # L: Punkte ohne Bonus
 
 # Boni-Spalten relativ zum Block-Start:
-# Season 4+5: M=12 POD, N=13 FL, O=14 FT, P=15 SR, Q=16 Gesamt
-# Season 3:   M=12 POD, N=13 FL, O=14 LP, P=15 FT, Q=16 SR, R=17 Gesamt
-BONI_COLS_S45 = {BONUS_POD: 12, BONUS_FL: 13, BONUS_FT: 14, BONUS_SR: 15}
-BONI_COLS_S3  = {BONUS_POD: 12, BONUS_FL: 13, BONUS_LP: 14, BONUS_FT: 15, BONUS_SR: 16}
-COL_PTS_TOTAL_S45 = 16
-COL_PTS_TOTAL_S3  = 17
+# Season 4+5: M=11 POD, N=12 FL, O=13 FT, P=14 SR, Q=15 Gesamt
+# Season 3:   M=11 POD, N=12 FL, O=13 LP, P=14 FT, Q=15 SR, R=16 Gesamt
+BONI_COLS_S45 = {BONUS_POD: 11, BONUS_FL: 12, BONUS_FT: 13, BONUS_SR: 14}
+BONI_COLS_S3  = {BONUS_POD: 11, BONUS_FL: 12, BONUS_LP: 13, BONUS_FT: 14, BONUS_SR: 15}
+COL_PTS_TOTAL_S45 = 15
+COL_PTS_TOTAL_S3  = 16
 
 # FL-Zeile: Zeile 4 (Index 3), relativ zum Sheet
 FL_ROW = 3
-# FL Driver: Block-Start + 2 (Spalte C), FL Zeit: Block-Start + 6 (Spalte G)
-FL_COL_DRIVER = 2
-FL_COL_TIME   = 6
+# FL Driver: Block-Start + 1 (Spalte C), FL Zeit: Block-Start + 5 (Spalte G)
+FL_COL_DRIVER = 1
+FL_COL_TIME   = 5
 
 # Logging
 logging.basicConfig(
