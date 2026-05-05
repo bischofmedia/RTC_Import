@@ -223,7 +223,7 @@ TEAM_NAME_MAP = {
     "Team Coyote":          "Racing Team Coyote",
     "Noller Racing":        "Noller Racing Team",
     "TFD Racing":           "TFD Racing Team",
-    "NRT":                  "NRT",           # team_id=197
+    "NRT":                  "NRT",           # team_id=197, exakter Match nötig
     "Narcotic Racing Club": "Narcotic Racing Club",  # team_id=198
     "Narcotic Racin Club":  "Narcotic Racing Club",  # Schreibfehler-Variante
 }
@@ -252,6 +252,12 @@ def lookup_team(cur, name):
     row = cur.fetchone()
     if row:
         return row["team_id"]
+    # Abkürzung prüfen
+    cur.execute("SELECT team_id, name FROM teams WHERE abbreviation = %s LIMIT 1", (name,))
+    row = cur.fetchone()
+    if row:
+        return row["team_id"]
+    # Fuzzy
     cur.execute("SELECT team_id, name FROM teams WHERE name LIKE %s LIMIT 1",
                 (f"%{name}%",))
     row = cur.fetchone()
