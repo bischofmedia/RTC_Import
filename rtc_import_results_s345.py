@@ -194,19 +194,32 @@ def col_letter_to_index(letters):
 
 # Fahrzeugname-Übersetzungen: Sheet-Name → DB-Name
 VEHICLE_NAME_MAP = {
-    "Volkswagen BEETLE":    "VW BEETLE",
+    "Volkswagen BEETLE":     "VW BEETLE",
+    "Volkswagen GTI VGT":    "VW GTI VGT",
     "Chevrolet CORVETTE C7": "Corvette C7",
-    "Mercedes-Benz AMG":    "Mercedes AMG",
+    "Mercedes-Benz AMG":     "Mercedes AMG",
     "Mercedes-Benz SLS AMG": "Mercedes SLS",
-    "Renault Sport R.S.01": "Renault R.S.01",
-    "Alfa Romeo 4C":        "Alfa 4C",
-    "Dodge VIPER SRT":      "Dodge Viper",
-    "Ferrari 458 ITALIA":   "Ferrari 458",
+    "Renault Sport R.S.01":  "Renault R.S.01",
+    "Alfa Romeo 4C":         "Alfa 4C",
+    "Dodge VIPER SRT":       "Dodge Viper",
+    "Ferrari 458 ITALIA":    "Ferrari 458",
     "Mitsubishi LANCER EVO": "Mitsubishi Lancer",
-    "Nissan GT-R NISMO":    "Nissan GT-R '13",
-    "BMW M6":               "BMW M6",
-    "BMW M3 GT":            "BMW M3 '11",
-    "Audi R8 LMS":          "Audi R8 LMS '15",
+    "Nissan GT-R NISMO":     "Nissan GT-R '13",
+    "Lamborghini HURACAN":   "Lamborghini '15",
+    "Ford GT LM SPEC II":    "Ford GT LM",
+    "BMW M6":                "BMW M6",
+    "BMW M3 GT":             "BMW M3 '11",
+    "Audi R8 LMS":           "Audi R8 LMS '15",
+}
+
+# Teamname-Übersetzungen: Sheet-Name → DB-Name
+TEAM_NAME_MAP = {
+    "Team Coyote":          "Racing Team Coyote",
+    "Noller Racing":        "Noller Racing Team",
+    "TFD Racing":           "TFD Racing Team",
+    "NRT":                  "NRT",           # team_id=197
+    "Narcotic Racing Club": "Narcotic Racing Club",  # team_id=198
+    "Narcotic Racin Club":  "Narcotic Racing Club",  # Schreibfehler-Variante
 }
 
 def lookup_driver(cur, psn_name):
@@ -227,6 +240,8 @@ def lookup_or_create_driver(cur, psn_name):
 def lookup_team(cur, name):
     if not name:
         return None
+    # Übersetzung anwenden falls vorhanden
+    name = TEAM_NAME_MAP.get(name, name)
     cur.execute("SELECT team_id FROM teams WHERE name = %s", (name,))
     row = cur.fetchone()
     if row:
