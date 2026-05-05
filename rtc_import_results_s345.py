@@ -192,6 +192,23 @@ def col_letter_to_index(letters):
 
 # ── DB-Lookups ────────────────────────────────────────────────────────────────
 
+# Fahrzeugname-Übersetzungen: Sheet-Name → DB-Name
+VEHICLE_NAME_MAP = {
+    "Volkswagen BEETLE":    "VW BEETLE",
+    "Chevrolet CORVETTE C7": "Corvette C7",
+    "Mercedes-Benz AMG":    "Mercedes AMG",
+    "Mercedes-Benz SLS AMG": "Mercedes SLS",
+    "Renault Sport R.S.01": "Renault R.S.01",
+    "Alfa Romeo 4C":        "Alfa 4C",
+    "Dodge VIPER SRT":      "Dodge Viper",
+    "Ferrari 458 ITALIA":   "Ferrari 458",
+    "Mitsubishi LANCER EVO": "Mitsubishi Lancer",
+    "Nissan GT-R NISMO":    "Nissan GT-R '13",
+    "BMW M6":               "BMW M6",
+    "BMW M3 GT":            "BMW M3 '11",
+    "Audi R8 LMS":          "Audi R8 LMS '15",
+}
+
 def lookup_driver(cur, psn_name):
     cur.execute("SELECT driver_id FROM drivers WHERE psn_name = %s", (psn_name,))
     row = cur.fetchone()
@@ -227,6 +244,8 @@ def lookup_team(cur, name):
 def lookup_vehicle(cur, name):
     if not name:
         return None
+    # Übersetzung anwenden falls vorhanden
+    name = VEHICLE_NAME_MAP.get(name, name)
     cur.execute("SELECT vehicle_id FROM vehicles WHERE name = %s", (name,))
     row = cur.fetchone()
     if row:
