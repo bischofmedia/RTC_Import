@@ -188,6 +188,14 @@ def main():
         )
         log.info(f"  name_history aktualisiert: {new_history}")
 
+        # ── fastest_lap_driver_id in races umschreiben ───────────────────────
+        cur.execute(
+            "UPDATE races SET fastest_lap_driver_id = %s WHERE fastest_lap_driver_id = %s",
+            (keep_id, merge_id),
+        )
+        if cur.rowcount:
+            log.info(f"  {cur.rowcount} Rennen mit fastest_lap_driver_id aktualisiert.")
+
         # ── Fahrer loeschen ───────────────────────────────────────────────────
         cur.execute("DELETE FROM drivers WHERE driver_id = %s", (merge_id,))
         log.info(f"  Fahrer {merge_id} ({merge_name}) geloescht.")
