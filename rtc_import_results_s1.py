@@ -193,13 +193,29 @@ def lookup_team(cur, name):
     return None
 
 
-def lookup_grid(cur, race_id, grid_number):
+def lookup_or_ensure_grid(cur, race_id, grid_number):
+    """Sucht grid_id, legt Grid an falls nicht vorhanden."""
+    if not grid_number:
+        return None
     cur.execute(
         "SELECT grid_id FROM grids WHERE race_id = %s AND grid_number = %s",
         (race_id, grid_number),
     )
     row = cur.fetchone()
-    return row["grid_id"] if row else None
+    if row:
+        return row["grid_id"]
+    # Anlegen
+    GRID_LABELS = {
+        "1": ("1", "Grid 1"), "2": ("2", "Grid 2"),
+        "2a": ("2", "Grid 2a"), "2b": ("2", "Grid 2b"), "3": ("3", "Grid 3"),
+    }
+    grid_class, grid_label = GRID_LABELS.get(grid_number, (grid_number, f"Grid {grid_number}"))
+    cur.execute(
+        "INSERT INTO grids (race_id, grid_number, grid_class, grid_label) VALUES (%s,%s,%s,%s)",
+        (race_id, grid_number, grid_class, grid_label),
+    )
+    log.info(f"  Grid '{grid_number}' fuer race_id={race_id} angelegt.")
+    return cur.lastrowid
 
 
 def ensure_grids(cur, race_id, grid_numbers):
@@ -413,7 +429,9 @@ def import_race(cur, race_number, data):
         psn  = entry["psn_name"]
         d_id = lookup_or_create_driver(cur, psn)
         t_id = lookup_team(cur, entry["team_name"])
-        g_id = lookup_grid(cur, race_id, entry["grid_number"]) if entry["grid_number"] else None
+        g_id = lookup_or_ensure_grid(cur, race_id, entry["grid_number"]) if entry["grid_number"] else None
+        if not g_id and entry["grid_number"]:
+            log.warning(f"  Grid '{entry['grid_number']}' nicht gefunden fuer {psn}")
 
         cur.execute(
             """INSERT INTO race_results
