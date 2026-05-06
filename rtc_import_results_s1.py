@@ -242,133 +242,125 @@ def get_race_from_db(cur, season_id, race_number):
 
 def parse_all_races(rows):
     """
-    Liest alle Rennen aus dem Übersicht-Sheet.
-    Erkennt Rennen-Start wenn Spalte C eine Zahl ist und Spalte B 'Race' oder leer.
-    Gibt dict zurueck: {race_number: {entries, fl_driver, fl_time}}
+    Liest alle Rennen aus dem Uebersicht-Sheet.
+
+    Struktur:
+      Rennen-Header: B (idx 1) = 'Race', C (idx 2) = Rennnummer
+      Strecke:       naechste Zeile, B (idx 1)
+      Header:        POS=D(3), NAME=E(4), TIME=F(5), PKT=G(6), GRID=H(7), TEAM=I(8)
+      Daten:         D=POS/DNF/DNS, E=NAME, F=TIME, G=PKT, H=GRID, I=TEAM
+      FL-Block:      F (idx 5) = 'Fastest LAP', dann 2 Zeilen darunter NAME in E(4), ZEIT in H(7)
     """
     races = {}
     i = 0
+
     while i < len(rows):
         row = rows[i]
-        # Rennen-Header erkennen: Spalte C ist Rennnummer
-        b = cell(row, 1)
-        c = cell(row, 2)
-
-        if c.isdigit() and (b in ("Race", "") or b == "Race"):
-            race_number = int(c)
-            i += 1  # Streckenname-Zeile
-            i += 1  # Header-Zeile (POS, NAME...)
+        # Rennen-Header: B='Race', C=Zahl
+        if cell(row, 1) == "Race" and cell(row, 2).isdigit():
+            race_number = int(cell(row, 2))
+            i += 1  # Streckenname
+            i += 1  # Header-Zeile
             i += 1  # Leerzeile
+            i += 1  # Erste Datenzeile
 
-            entries    = []
-            fl_driver  = None
-            fl_time    = None
-            finish_pos = 0
+            entries             = []
+            fl_driver           = None
+            fl_time             = None
+            finish_pos_counter  = 0
 
             while i < len(rows):
-                r = rows[i]
-                d = cell(r, 3)  # POS oder DNF/DNS oder 'Fastest LAP'
-                e = cell(r, 4)  # NAME
+                r    = rows[i]
+                pos  = cell(r, 3)   # D: POS / DNF / DNS
+                name = cell(r, 4)   # E: NAME
 
-                # Fastest LAP Block
-                if d == "" and e == "" and cell(r, 4) == "" and i + 2 < len(rows):
-                    # Prüfen ob zwei Zeilen später FL-Daten stehen
-                    fl_row = rows[i + 2] if i + 2 < len(rows) else []
-                    fl_name = cell(fl_row, 4)
-                    fl_t    = cell(fl_row, 7)
-                    if fl_name or fl_t:
-                        fl_driver = fl_name
-                        fl_time   = fl_t
-                    i += 5  # FL-Block überspringen (5 Zeilen)
+                # FL-Block erkennen: F (idx 5) = 'Fastest LAP'
+                if cell(r, 5) == "Fastest LAP":
+                    if i + 2 < len(rows):
+                        fl_row    = rows[i + 2]
+                        fl_driver = cell(fl_row, 4)  # E
+                        fl_time   = cell(fl_row, 7)  # H
+                    i += 5
                     break
 
-                # Nächstes Rennen
-                if cell(r, 2).isdigit() and cell(r, 1) in ("Race", ""):
+                # Naechstes Rennen
+                if cell(r, 1) == "Race" and cell(r, 2).isdigit():
                     break
 
                 # Fahrereintrag
-                if d.isdigit():
-                    finish_pos = int(d)
-                    status     = "FIN"
-                elif d in ("DNF", "DNS"):
-                    finish_pos += 1  # DNF/DNS werden nach finishers gezählt
-                    status = d
-                else:
-                    i += 1
-                    continue
+                if pos.isdigit() or pos in ("DNF", "DNS"):
+                    if not name:
+                        i += 1
+                        continue
 
-                psn_name  = e
-                time_raw  = cell(r, 5)
-                pts_raw   = cell(r, 6)
-                grid_raw  = cell(r, 7)
-                team_name = cell(r, 8)
+                    status = pos if pos in ("DNF", "DNS") else "FIN"
 
-                if not psn_name:
-                    i += 1
-                    continue
+                    if status == "FIN":
+                        finish_pos_counter = int(pos)
+                    else:
+                        finish_pos_counter += 1
 
-                # DNS: Zeit ist "DNS", Grid ist "x"
-                if status == "DNS":
-                    time_raw = None
-                    grid_raw = None
+                    finish_pos = finish_pos_counter
+                    time_raw   = cell(r, 5)  # F
+                    pts_raw    = cell(r, 6)  # G
+                    grid_raw   = cell(r, 7)  # H
+                    team_name  = cell(r, 8)  # I
 
-                time_sec = parse_time_to_seconds(time_raw) if time_raw else None
+                    if status == "DNS":
+                        time_raw = None
+                        grid_raw = None
 
-                try:
-                    pts = int(pts_raw) if pts_raw and pts_raw.isdigit() else 0
-                except ValueError:
-                    pts = 0
+                    time_sec = parse_time_to_seconds(time_raw) if time_raw else None
 
-                entries.append({
-                    "finish_pos":  finish_pos if status == "FIN" else None,
-                    "psn_name":    psn_name,
-                    "team_name":   team_name,
-                    "grid_number": grid_raw if grid_raw and grid_raw != "x" else None,
-                    "race_time":   time_raw if status == "FIN" else None,
-                    "time_sec":    time_sec,
-                    "points_total": pts,
-                    "status":      status,
-                    "rating":      None,
-                })
+                    try:
+                        pts = int(pts_raw) if pts_raw and pts_raw.isdigit() else 0
+                    except ValueError:
+                        pts = 0
+
+                    entries.append({
+                        "finish_pos":      finish_pos,
+                        "psn_name":        name,
+                        "team_name":       team_name,
+                        "grid_number":     grid_raw if grid_raw and grid_raw != "x" else None,
+                        "race_time":       time_raw if status == "FIN" else None,
+                        "time_sec":        time_sec,
+                        "points_total":    pts,
+                        "status":          status,
+                        "rating":          None,
+                        "finish_pos_grid": None,
+                    })
+
                 i += 1
-                continue
 
-            # Siegerzeit und Ratings berechnen
+            # Siegerzeit, Ratings und finish_pos_grid berechnen
             winner_time = next(
                 (e["time_sec"] for e in entries
                  if e["status"] == "FIN" and e["time_sec"]),
                 None
             )
-            # finish_pos_grid berechnen
             grid_counters = defaultdict(int)
-            finishers = sorted(
-                [e for e in entries if e["status"] == "FIN" and e["finish_pos"]],
+            for entry in sorted(
+                [e for e in entries if e["status"] == "FIN"],
                 key=lambda x: x["finish_pos"]
-            )
-            for entry in finishers:
+            ):
                 gn = entry["grid_number"] or "?"
                 grid_counters[gn] += 1
                 entry["finish_pos_grid"] = grid_counters[gn]
                 if entry["time_sec"] and winner_time and winner_time > 0:
                     entry["rating"] = round(entry["time_sec"] / winner_time * 100, 2)
 
-            # DNF/DNS ohne finish_pos: nach den Finishern anhängen
-            non_finishers = [e for e in entries if e["status"] != "FIN"]
-            for j, entry in enumerate(non_finishers):
-                entry["finish_pos"] = len(finishers) + j + 1
-                entry["finish_pos_grid"] = None
-
             races[race_number] = {
                 "entries":   entries,
                 "fl_driver": fl_driver,
                 "fl_time":   fl_time,
             }
-            log.info(f"  Rennen {race_number}: {len(entries)} Eintraege geparst, "
+            log.info(f"  Rennen {race_number}: {len(entries)} Eintraege, "
                      f"FL: {fl_driver} ({fl_time})")
         else:
             i += 1
 
     return races
+
 
 
 # ── DB-Import ─────────────────────────────────────────────────────────────────
