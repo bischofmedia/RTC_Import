@@ -53,7 +53,7 @@ SEASON_ID  = 1
 SHEET_TAB  = "Übersicht"
 
 logging.basicConfig(
-    level=logging.DEBUG,
+    level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
     handlers=[
         logging.StreamHandler(sys.stdout),
@@ -433,7 +433,11 @@ def import_race(cur, race_number, data):
         g_id = lookup_or_ensure_grid(cur, race_id, entry["grid_number"]) if entry["grid_number"] else None
         if not g_id and entry["grid_number"]:
             log.warning(f"  Grid '{entry['grid_number']}' nicht gefunden fuer {psn}")
-        log.debug(f"  INSERT: {psn}, grid={entry['grid_number']}, g_id={g_id}")
+
+        # DNS-Fahrer ohne Grid ueberspringen
+        if g_id is None:
+            inserted += 1
+            continue
 
         cur.execute(
             """INSERT INTO race_results
