@@ -183,6 +183,12 @@ def lookup_or_create_driver(cur, psn_name):
 def lookup_team(cur, name):
     if not name:
         return None
+    # Übersetzungen
+    TEAM_MAP = {
+        "Shiftlock-Racing":       "Shift-Lock-Racing",
+        "Maibert Mac Lon Racing": "Maibert MacLon Racing",
+    }
+    name = TEAM_MAP.get(name, name)
     cur.execute("SELECT team_id FROM teams WHERE name = %s", (name,))
     row = cur.fetchone()
     if row:
