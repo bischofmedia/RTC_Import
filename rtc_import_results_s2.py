@@ -560,7 +560,7 @@ def main():
         log.info(f"Saison: {season['name']} (ID={SEASON_ID}) | Sheet={sheet_id}")
 
         svc       = get_sheets_service()
-        races_rows = fetch_sheet(svc, sheet_id, "Races")
+        races_rows = fetch_sheet(svc, sheet_id, "Gesamt-Ergebnisse")
 
         race_numbers = [args.race] if args.race else list(range(1, NUM_RACES + 1))
         log.info(f"Zu importierende Rennen: {race_numbers}")
