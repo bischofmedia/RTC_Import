@@ -187,6 +187,7 @@ def lookup_team(cur, name):
     TEAM_MAP = {
         "Shiftlock-Racing":       "Shift-Lock-Racing",
         "Maibert Mac Lon Racing": "Maibert MacLon Racing",
+        "Pablo Racing Team PRT":  "PRT Competition",
     }
     name = TEAM_MAP.get(name, name)
     cur.execute("SELECT team_id FROM teams WHERE name = %s", (name,))
