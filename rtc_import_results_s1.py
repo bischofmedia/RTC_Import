@@ -53,7 +53,7 @@ SEASON_ID  = 1
 SHEET_TAB  = "Übersicht"
 
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.DEBUG,
     format="%(asctime)s [%(levelname)s] %(message)s",
     handlers=[
         logging.StreamHandler(sys.stdout),
@@ -214,8 +214,9 @@ def lookup_or_ensure_grid(cur, race_id, grid_number):
         "INSERT INTO grids (race_id, grid_number, grid_class, grid_label) VALUES (%s,%s,%s,%s)",
         (race_id, grid_number, grid_class, grid_label),
     )
-    log.info(f"  Grid '{grid_number}' fuer race_id={race_id} angelegt.")
-    return cur.lastrowid
+    new_id = cur.lastrowid
+    log.info(f"  Grid '{grid_number}' fuer race_id={race_id} angelegt (grid_id={new_id}).")
+    return new_id if new_id else None
 
 
 def ensure_grids(cur, race_id, grid_numbers):
@@ -432,6 +433,7 @@ def import_race(cur, race_number, data):
         g_id = lookup_or_ensure_grid(cur, race_id, entry["grid_number"]) if entry["grid_number"] else None
         if not g_id and entry["grid_number"]:
             log.warning(f"  Grid '{entry['grid_number']}' nicht gefunden fuer {psn}")
+        log.debug(f"  INSERT: {psn}, grid={entry['grid_number']}, g_id={g_id}")
 
         cur.execute(
             """INSERT INTO race_results
